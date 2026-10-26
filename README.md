@@ -34,7 +34,7 @@ The example uses the configured `@iiits.in` domain. To create this presenter acc
 python3 sentinel.py
 ```
 
-`sentinel.py` is the original median/MAD reference. The website's current model is in `isolation_forest.py` and is run by the Python server.
+`sentinel.py` uses the same dependency-free Isolation Forest as the website, implemented in `isolation_forest.py`. It collects at least 12 initial readings to train; it starts scoring each new reading after warm-up.
 
 ## Dataset and evaluation
 
@@ -50,8 +50,8 @@ python3 sentinel.py
 ## Project files
 
 - `auth_server.py` — local login server, session handling, member access, presenter management.
-- `sentinel.py` — Python streaming detector and sample run.
-- `isolation_forest.py` — dependency-free Isolation Forest model used by the website.
+- `sentinel.py` — standalone streaming interface and sample run using Isolation Forest.
+- `isolation_forest.py` — shared dependency-free Isolation Forest implementation used by both the website and standalone detector.
 - `index.html`, `styles.css`, `app.js` — responsive NAB dataset dashboard, CSV/labels loading, streaming replay, evidence, and benchmark metrics.
 - `login.html`, `auth.css`, `auth.js` — sign-in and member registration pages.
 - `code-explainer.html` — beginner-friendly method and demo guide.
@@ -62,4 +62,3 @@ python3 sentinel.py
 ## Private GitHub notes
 
 Keep this repository private while it contains the demo admin credential. Change the default password before hosting anywhere public. The account database `sentinel_auth.sqlite3`, local `.env` files, Python caches, and editor/OS files are excluded by `.gitignore`; do not commit user records. Public deployment requires HTTPS, persistent private database storage, and an application server—not static hosting.
-

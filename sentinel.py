@@ -1,76 +1,90 @@
-"""Lightweight streaming detector using a permitted sliding-window threshold.
-
-The window uses a rolling median and MAD to produce an interpretable robust score.
-"""
+"""Streaming interface for Sentinel's dependency-free Isolation Forest."""
 
 from __future__ import annotations
 
 from collections import deque
+from math import isfinite
 from statistics import median
+
+from isolation_forest import IsolationForest, features
 
 
 class Sentinel:
-    """Flag observations using an adaptive rolling median/MAD threshold.
+    """Warm up on initial readings, then score new readings with Isolation Forest.
 
-    Feed clean numeric observations to ``update`` one at a time. Flagged
-    observations are excluded from the training window so a sharp event cannot
-    immediately move the baseline toward itself.
+    Initial readings form the model's training set. After training, predicted
+    anomalies are excluded from the rolling feature history.
     """
 
-    def __init__(self, window: int = 51, threshold: float = 3.5,
-                 min_samples: int = 12) -> None:
-        if window < 3:
-            raise ValueError("window must be at least 3")
-        if min_samples < 3 or min_samples > window:
-            raise ValueError("min_samples must be between 3 and window")
-        if threshold <= 0:
-            raise ValueError("threshold must be positive")
-        self.values: deque[float] = deque(maxlen=window)
-        self.threshold = threshold
+    def __init__(self, trees: int = 40, sample_size: int = 128,
+                 contamination: float = 0.02, min_samples: int = 12,
+                 seed: int = 42) -> None:
+        if min_samples < 12:
+            raise ValueError("min_samples must be at least 12")
+        self.trees = trees
+        self.sample_size = sample_size
+        self.contamination = contamination
         self.min_samples = min_samples
+        self.seed = seed
+        self.values: deque[float] = deque(maxlen=24)
+        self.training_rows: list[tuple[float, ...]] = []
+        self.forest: IsolationForest | None = None
 
     def update(self, value: float) -> dict[str, object]:
-        """Score a sample and update the baseline only when it is clean."""
+        """Train during warm-up, then return the Isolation Forest decision."""
         value = float(value)
-        if len(self.values) < self.min_samples:
+        if not isfinite(value):
+            raise ValueError("value must be a finite number")
+
+        if self.forest is None:
+            vector = features(value, list(self.values))
+            self.training_rows.append(vector)
             self.values.append(value)
+            samples = len(self.training_rows)
+            if samples < self.min_samples:
+                return {
+                    "status": "warming_up",
+                    "value": value,
+                    "score": 0.0,
+                    "samples": samples,
+                    "needed": self.min_samples,
+                    "explanation": f"Collecting training readings ({samples}/{self.min_samples}); not scoring yet.",
+                }
+
+            self.forest = IsolationForest(
+                trees=self.trees,
+                sample_size=self.sample_size,
+                contamination=self.contamination,
+                seed=self.seed,
+            ).fit(self.training_rows)
             return {
-                "status": "warming_up",
+                "status": "ready",
                 "value": value,
                 "score": 0.0,
-                "samples": len(self.values),
+                "samples": samples,
                 "needed": self.min_samples,
-                "explanation": f"Collecting normal readings ({len(self.values)}/{self.min_samples}); not scoring yet.",
+                "explanation": f"Isolation Forest trained on {samples} readings; scoring starts with the next reading.",
             }
 
-        center = median(self.values)
-        mad = median(abs(item - center) for item in self.values)
-        spread = max(1.4826 * mad, 1e-9)
-        score = (value - center) / spread
-        upper = center + self.threshold * spread
-        lower = center - self.threshold * spread
-        flagged = abs(score) > self.threshold
-        direction = "high" if value > upper else "low" if value < lower else "within_range"
-        deviation = value - center
-        if direction == "high":
-            explanation = f"Reading is {value - upper:.2f} above the upper limit ({upper:.2f})."
-        elif direction == "low":
-            explanation = f"Reading is {lower - value:.2f} below the lower limit ({lower:.2f})."
+        vector = features(value, list(self.values))
+        score = self.forest.score(vector)
+        flagged = score >= self.forest.threshold
+        center = median(self.values) if self.values else value
+        direction = "high" if value > center else "low" if value < center else "within_range"
+        if flagged:
+            explanation = f"Isolation Forest score {score:.3f} meets or exceeds the anomaly cutoff ({self.forest.threshold:.3f})."
         else:
-            explanation = "Reading is within the expected range."
-
-        if not flagged:
+            explanation = "Isolation Forest score is below the anomaly cutoff."
             self.values.append(value)
 
         return {
             "status": "anomaly" if flagged else "normal",
             "value": value,
             "direction": direction,
-            "deviation": round(deviation, 3),
+            "deviation": round(value - center, 3),
             "score": round(score, 3),
+            "threshold": round(self.forest.threshold, 3),
             "baseline": center,
-            "upper": upper,
-            "lower": lower,
             "explanation": explanation,
         }
 
