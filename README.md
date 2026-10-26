@@ -2,15 +2,29 @@
 
 Sentinel is a student prototype for NAB time-series anomaly detection. The dashboard trains a permitted unsupervised Isolation Forest on clean readings, scores each point, and shows evidence for detected or missed points.
 
-## Run the website
+## Open and run the website from GitHub
 
-Requirements: Python 3.9 or newer. The website and dependency-free Isolation Forest use Python's standard library; no ML package installation is needed.
+The repository is private, so the owner must first invite hackathon participants as GitHub collaborators. Opening the repository page shows the source files; GitHub does not host this authenticated app as a live website. Each participant can run a local copy:
 
-```sh
-python3 auth_server.py
-```
+1. Accept the GitHub collaborator invitation and sign in to GitHub.
+2. Install Python 3.9 or newer.
+3. In Terminal, clone the repository and enter its folder:
 
-Open <http://127.0.0.1:8001>. Keep that terminal open while using the site. Do not run `python3 -m http.server`: the authenticated Python server must handle website requests.
+   ```sh
+   git clone https://github.com/navneetkonathala/Sentinel_Private_GitHub_Repo.git
+   cd Sentinel_Private_GitHub_Repo
+   ```
+
+   If you downloaded the repository ZIP instead, extract it and open Terminal in the extracted `Sentinel_Private_GitHub_Repo` folder.
+4. Start the authenticated app:
+
+   ```sh
+   python3 auth_server.py
+   ```
+
+5. On that same computer, open <http://127.0.0.1:8001> in a browser. Keep the terminal running while using the site.
+
+The app and its SQLite account database run on that computer; this address is not a public/shared hosted URL. Do not run `python3 -m http.server`: static hosting bypasses the app's sign-in checks. Python's standard library is sufficient; no package installation is needed.
 
 The primary presenter account is initialized on first run. Its local demo credentials and configuration are documented in [AUTH_SETUP.md](AUTH_SETUP.md). The presenter can add presenter accounts and open/close member access from the bottom of the dashboard. Members register with an `@iiits.in` address and password; the domain is checked, but mailbox ownership is not verified.
 
