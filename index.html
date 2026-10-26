@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <meta name="description" content="A beginner-friendly interactive demo of time-series anomaly detection.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>Sentinel | Adaptive anomaly detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="rail" aria-label="Main navigation">
+      <a class="brand-mark" href="#overview" aria-label="Sentinel home">S<span>.</span></a>
+      <nav class="rail-nav">
+        <a class="rail-link active" href="#overview" aria-label="Monitor" title="Monitor"><span class="nav-glyph">◉</span></a>
+        <a class="rail-link" href="#events" aria-label="Events" title="Events"><span class="nav-glyph">≋</span></a>
+        <a class="rail-link" href="#method" aria-label="Method" title="Method"><span class="nav-glyph">⌘</span></a>
+      </nav>
+      <div class="rail-bottom"><button id="install-button" class="install-button" type="button" hidden>Install app</button><span class="avatar">UT</span></div>
+    </aside>
+
+    <main id="overview" class="main-content">
+      <header class="topbar">
+        <div class="crumb"><span>UTKRISHTA 2026</span><span class="crumb-slash">/</span><strong>Challenge 02</strong></div>
+        <div class="top-actions"><span class="status-live"><i></i> SYSTEM ONLINE</span><a class="source-link" href="Utkrishta%202026%20Participant%20Problem%20Statements.pdf" target="_blank" rel="noreferrer">Problem brief <span>↗</span></a><span id="account-label" class="account-label"></span><button id="logout-button" class="logout-button" type="button">Sign out</button></div>
+      </header>
+
+      <section class="intro">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-line"></span> ADAPTIVE TIME-SERIES ANOMALY DETECTION</div>
+          <h1>Sentinel<span class="title-period">.</span></h1>
+          <p class="intro-copy">A simple demo that learns what is usual in a stream of numbers and flags readings that are far from it.</p>
+        </div>
+        <div class="intro-note"><span class="note-index">02</span><span>STREAMING<br>MONITOR</span></div>
+      </section>
+
+      <section class="plain-language" aria-label="What this demo detects">
+        <div class="plain-icon" aria-hidden="true">↗</div>
+        <div><strong>What is it detecting?</strong><p>This demo spots unusually high or low <b>numbers over time</b>. The signal is generated randomly; no real-time database or company system is connected. It does <b>not</b> read server packets. Once the presenter opens member access, you can try Sentinel’s anomaly and drift controls on the demo signal.</p></div>
+        <a href="code-explainer.html">Simple code guide <span>→</span></a>
+      </section>
+
+      <section class="metrics" aria-label="Live detector metrics">
+        <article class="metric"><div class="metric-label">CURRENT SIGNAL <span class="metric-dot teal"></span></div><div class="metric-value"><span id="current-value">42.0</span><small>units</small></div><div class="metric-foot"><span id="signal-state">Within expected range</span></div></article>
+        <article class="metric"><div class="metric-label">LEARNED BASELINE <span class="metric-dot ink"></span></div><div class="metric-value"><span id="baseline-value">42.0</span><small>μ</small></div><div class="metric-foot">Robust rolling center</div></article>
+        <article class="metric"><div class="metric-label">ACTIVE THRESHOLD <span class="metric-dot amber"></span></div><div class="metric-value"><span id="threshold-value">±8.0</span><small>σ robust</small></div><div class="metric-foot">Median absolute deviation</div></article>
+        <article class="metric event-metric"><div class="metric-label">FLAGGED EVENTS</div><div class="metric-value"><span id="event-count">0</span><small>this session</small></div><div class="metric-foot"><span class="event-foot-dot"></span><span id="last-event">No anomalies detected</span></div></article>
+      </section>
+
+      <section class="monitor-panel" aria-labelledby="signal-title">
+        <div class="panel-head">
+          <div><div class="section-kicker">SYNTHETIC DEMO · NO DATABASE <span class="tiny-pulse"></span></div><h2 id="signal-title">Signal behavior</h2><p id="member-demo-banner" class="member-demo-banner" hidden>Demo mode is active. Explore Sentinel’s functions with simulated readings; this dashboard is not connected to a real service.</p></div>
+          <div class="chart-legend"><span><i class="legend-signal"></i>Signal</span><span><i class="legend-baseline"></i>Baseline</span><span><i class="legend-bound"></i>Bounds</span><span><i class="legend-flag"></i>Flagged</span></div>
+        </div>
+        <div class="chart-wrap"><canvas id="signal-chart" aria-label="Live anomaly detection signal chart"></canvas><div class="chart-y-label">SIGNAL · UNITS</div><div class="chart-time-label"><span>−60 samples</span><span>NOW</span></div><div id="chart-tooltip" class="chart-tooltip" aria-live="polite"></div></div>
+        <div class="chart-footer"><div class="stream-readout"><span class="stream-indicator"></span><span id="stream-label">STREAMING</span><span class="readout-divider"></span><span id="sample-count">SAMPLE 001</span></div><div id="demo-controls" class="controls" hidden><button id="inject-button" class="button button-alert" type="button" title="Inject an anomaly into the signal"><span class="button-icon">＋</span> Inject anomaly</button><button id="drift-button" class="button button-quiet" type="button" title="Toggle gradual baseline drift"><span class="button-icon">↗</span> <span id="drift-label">Simulate drift</span></button><button id="pause-button" class="icon-button" type="button" aria-label="Pause stream" title="Pause stream">Ⅱ</button><button id="reset-button" class="icon-button" type="button" aria-label="Reset simulation" title="Reset simulation">↺</button></div></div>
+      </section>
+
+      <section class="lower-grid">
+        <section id="events" class="events-panel" aria-labelledby="events-title">
+          <div class="panel-head compact-head"><div><div class="section-kicker">DETECTION LOG</div><h2 id="events-title">Recent events</h2></div><span class="event-total" id="event-total">0 events</span></div>
+          <div class="events-table-wrap"><table><thead><tr><th>START</th><th>PEAK</th><th>FROM BASELINE</th><th>STATUS</th></tr></thead><tbody id="event-rows"><tr class="empty-row"><td colspan="4"><span class="empty-icon">⌁</span> Listening for significant deviations</td></tr></tbody></table></div>
+        </section>
+        <aside class="method-card"><div class="method-top"><span class="method-icon">⌁</span><span class="method-tag">PERMITTED APPROACH</span></div><div class="method-name">Sliding-window<br>adaptive threshold</div><p>Uses rolling median + MAD to set an explainable range. The baseline learns from clean data and holds steady when a spike appears.</p><a href="#method" class="text-link">Explore the method <span>→</span></a><div class="method-spark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></aside>
+      </section>
+
+      <section id="method" class="method-section">
+        <div class="method-section-head"><div><div class="eyebrow"><span class="eyebrow-line"></span> HOW IT WORKS</div><h2>From raw signal<br>to useful alert.</h2></div><p class="method-intro">No training job. No heavy model. Sentinel updates one observation at a time and adapts only when the data looks trustworthy. <a href="code-explainer.html">Read the beginner guide →</a></p></div>
+        <div class="steps-grid">
+          <article class="step-card"><span class="step-number">01</span><div class="step-symbol">↓</div><h3>Ingest</h3><p>Accept a timestamped numeric observation from any stream: sensor, service metric, or process signal.</p><span class="step-detail">O(1) PER SAMPLE</span></article>
+          <article class="step-card"><span class="step-number">02</span><div class="step-symbol">⌖</div><h3>Establish normal</h3><p>Use the rolling median as center and scaled MAD as spread. Robust statistics shrug off isolated spikes.</p><span class="step-detail">51 VALUES · MAD × 1.4826</span></article>
+          <article class="step-card"><span class="step-number">03</span><div class="step-symbol">!</div><h3>Score & flag</h3><p>Compare the new point with the current band. One reading outside the band is flagged as an anomaly.</p><span class="step-detail">ROBUST Z-SCORE · ±3.5</span></article>
+          <article class="step-card"><span class="step-number">04</span><div class="step-symbol">↗</div><h3>Adapt safely</h3><p>Only clean observations update the window. Gradual shifts can become the new normal without absorbing sharp anomalies.</p><span class="step-detail">CLEAN DATA ONLY</span></article>
+        </div>
+        <div class="code-panel">
+          <div class="code-head"><div class="code-title"><span class="code-indicator"></span>REFERENCE IMPLEMENTATION <span class="code-file">sentinel.py</span></div><div class="code-actions"><button id="copy-code" class="code-button" type="button" title="Copy detector code">▣ <span>Copy</span></button><a class="code-button download-code" href="sentinel.py" download title="Download Python reference">↓ <span>Download .py</span></a></div></div>
+          <pre><code id="python-code">from collections import deque
+from statistics import median
+
+class Sentinel:
+    """Online robust detector. Feed one numeric sample at a time."""
+    def __init__(self, window=51, threshold=3.5, min_samples=12):
+        self.values = deque(maxlen=window)
+        self.threshold = threshold
+        self.min_samples = min_samples
+
+    def update(self, value):
+        if len(self.values) &lt; self.min_samples:
+            self.values.append(value)
+            return {"status": "warming_up", "value": value,
+                    "samples": len(self.values), "needed": self.min_samples,
+                    "explanation": "Collecting normal readings; not scoring yet."}
+
+        center = median(self.values)
+        deviations = [abs(item - center) for item in self.values]
+        mad = median(deviations)
+        spread = max(1.4826 * mad, 1e-9)
+        score = (value - center) / spread
+        upper = center + self.threshold * spread
+        lower = center - self.threshold * spread
+        flagged = abs(score) &gt; self.threshold
+        direction = "high" if value &gt; upper else "low" if value &lt; lower else "within_range"
+
+        # Never teach the baseline from a flagged point.
+        if not flagged:
+            self.values.append(value)
+
+        return {
+            "status": "anomaly" if flagged else "normal",
+            "value": value,
+            "direction": direction,
+            "deviation": round(value - center, 3),
+            "score": round(score, 3),
+            "baseline": center,
+            "upper": upper,
+            "lower": lower,
+            "explanation": "Compare value with the upper/lower limit to explain the alert.",
+        }</code></pre>
+          <div class="code-foot"><span>PYTHON 3 · STANDARD LIBRARY ONLY</span><a href="sentinel.py" download>Get the complete file <span>↗</span></a></div>
+        </div>
+        <div class="runbook"><div class="runbook-label"><span>RUNBOOK</span><span>5 STEPS</span></div><ol><li><b>01</b><span>Save <code>sentinel.py</code> in your project.</span></li><li><b>02</b><span>Import <code>Sentinel</code> into your stream consumer.</span></li><li><b>03</b><span>Instantiate it: <code>detector = Sentinel(window=51)</code>.</span></li><li><b>04</b><span>For each reading, call <code>result = detector.update(value)</code>.</span></li><li><b>05</b><span>Route <code>result["status"] == "anomaly"</code> to your alert/logging system.</span></li></ol><div class="runbook-note"><span>i</span> Tune <code>window</code> and <code>threshold</code> against representative clean data before production use.</div></div>
+      </section>
+      <section id="admin-access-panel" class="admin-access-panel" hidden>
+        <div class="sharing-row"><div><div class="section-kicker">PRIMARY PRESENTER CONTROLS</div><h2>Share the demo</h2><p id="sharing-status">Member access is closed. Registered users will see the coming-soon message.</p></div>
+          <button id="share-toggle" class="button button-share" type="button">Make this available to everyone who registered</button></div>
+        <div class="presenter-manager"><div><div class="section-kicker">PRESENTER ACCOUNTS</div><h3>Add a presenter</h3><p>Set an institute email and password for another presenter. They’ll be able to sign in and use the demo controls.</p></div>
+          <form id="presenter-form" class="presenter-form">
+            <label for="presenter-email">Presenter institute email</label><input id="presenter-email" type="email" placeholder="name@iiits.in" required>
+            <label for="presenter-password">Temporary password</label><input id="presenter-password" type="password" minlength="8" placeholder="At least 8 characters" required>
+            <button class="button button-share" type="submit">Add presenter</button><p id="presenter-message" role="status"></p>
+          </form>
+          <div id="presenter-list" class="presenter-list" aria-live="polite"><span class="presenter-empty">No additional presenters yet.</span></div>
+        </div>
+      </section>
+      <footer class="page-footer"><span>SENTINEL <i>·</i> UTKRISHTA 2026</span><span>CHALLENGE 02 / ADAPTIVE TIME-SERIES ANOMALY DETECTION</span></footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

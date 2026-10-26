@@ -1,0 +1,17 @@
+# Local auth database and local secrets
+sentinel_auth.sqlite3
+*.sqlite3
+*.db
+.env
+.env.*
+!.env.example
+
+# Python/cache/editor/OS files
+__pycache__/
+*.py[cod]
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary presentation builds
+*.tmp.pptx

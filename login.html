@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b2a">
+  <title>Sign in | Sentinel</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-story">
+      <a class="auth-brand" href="/login.html">S<span>.</span> <small>SENTINEL</small></a>
+      <div class="story-copy">
+        <span class="story-kicker">ADAPTIVE ANOMALY DETECTION</span>
+        <h1>See what<br>doesn’t fit.</h1>
+        <p>A lightweight time-series monitor that learns a signal’s usual range and explains unusual readings.</p>
+        <div class="story-note"><span>01</span><div><b>Private institute preview</b><small>Verified institute email required</small></div></div>
+      </div>
+      <span class="story-footer">UTKRISHTA 2026 · CHALLENGE 02</span>
+    </section>
+
+    <section class="auth-main">
+      <div class="auth-card">
+        <div class="card-kicker">WELCOME TO SENTINEL</div>
+        <h2 id="form-title">Sign in</h2>
+        <p id="form-subtitle" class="form-subtitle">Use your institute account to continue.</p>
+
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button class="auth-tab active" type="button" data-mode="login" role="tab" aria-selected="true">Sign in</button>
+          <button class="auth-tab" type="button" data-mode="register" role="tab" aria-selected="false">Create account</button>
+        </div>
+
+        <form id="auth-form" novalidate>
+          <label for="email">Institute email</label>
+          <input id="email" name="email" type="email" autocomplete="username" placeholder="name@iiits.in" required>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required>
+          <button id="submit-button" class="submit-button" type="submit">Sign in <span>→</span></button>
+          <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="auth-divider"><span>ACCESS NOTES</span></div>
+        <p class="access-note"><b>Members:</b> register using an <code>@iiits.in</code> address and a password. Member access opens when the presenter enables it.</p>
+        <p class="access-note"><b>Presenters:</b> sign in with an account added by the primary presenter. Presenter access is managed inside the dashboard.</p>
+        <p class="access-note">Registration checks the email domain only; it does not confirm ownership of the mailbox.</p>
+      </div>
+      <footer class="auth-footer">Your password is stored as a salted hash. Verification codes are short-lived.</footer>
+    </section>
+  </main>
+
+  <div id="notice-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-dismiss></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div id="modal-icon" class="modal-icon">☹</div>
+      <h2 id="modal-title">The member site is still being built</h2>
+      <p id="modal-copy">Your account is saved. Please check back when the presenter opens access.</p>
+      <button id="modal-close" class="submit-button" type="button">Got it</button>
+    </section>
+  </div>
+  <script src="auth.js"></script>
+</body>
+</html>

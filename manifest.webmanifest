@@ -1,0 +1,14 @@
+{
+  "id": "./index.html",
+  "name": "Sentinel Anomaly Demo",
+  "short_name": "Sentinel",
+  "description": "A beginner-friendly time-series anomaly detection demo.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#172b2a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
