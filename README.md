@@ -1,10 +1,10 @@
 # Sentinel — Utkrishta 2026, Challenge 2
 
-Sentinel is a student prototype for adaptive time-series anomaly detection. It uses a permitted sliding-window adaptive-threshold approach: a rolling median and MAD estimate normal behavior, then a robust score labels unusual readings and supplies evidence.
+Sentinel is a student prototype for NAB time-series anomaly detection. The dashboard trains a permitted unsupervised Isolation Forest on clean readings, scores each point, and shows evidence for detected or missed points.
 
 ## Run the website
 
-Requirements: Python 3.9 or newer. The running website uses Python's standard library; no package installation is needed.
+Requirements: Python 3.9 or newer. The website and dependency-free Isolation Forest use Python's standard library; no ML package installation is needed.
 
 ```sh
 python3 auth_server.py
@@ -34,36 +34,32 @@ The example uses the configured `@iiits.in` domain. To create this presenter acc
 python3 sentinel.py
 ```
 
-`Sentinel.update(value)` accepts one numeric observation. Defaults: 51 accepted readings in the rolling window, 12 readings to warm up, and a robust-score threshold of 3.5. Flagged values are not added to the baseline.
+`sentinel.py` is the original median/MAD reference. The website's current model is in `isolation_forest.py` and is run by the Python server.
 
-## What the demo does—and does not do
+## Dataset and evaluation
 
-- The website creates a random synthetic signal. It is not connected to a real-time database, company service, server packets, or the NAB dataset.
-- Presenters can inject a synthetic anomaly, simulate drift, pause, and reset. Registered members get these controls only while member access is open.
-- `sentinel.py` and the browser's JavaScript simulation are separate implementations with matching defaults. The website does not call the Python detector.
-- The supplied workspace has no NAB subset or benchmark results. Do not present synthetic examples as measured performance.
+- The challenge PDF specifies an organizer-prepared Numenta Anomaly Benchmark (NAB) subset with hidden test windows. That starter subset was not present in the supplied workspace.
+- The website therefore loads the public NAB `ambient_temperature_system_failure.csv` example from Numenta's GitHub when online. It is real hourly office-temperature data, with published NAB anomaly windows; it is explicitly identified in the UI as stand-in data, not the hidden challenge subset.
+- Use **Load challenge CSV** and **Load labels JSON** to replace the public example with the organizer-provided files. CSV columns must include `timestamp` and `value`; the labels JSON can use NAB's combined-windows format.
+- The server trains 40 randomized trees (sample size 128, contamination 2%) on clean NAB samples. It excludes published anomaly windows from training and uses those labels only for evaluation.
+- The dashboard reports event precision, recall, F1, detection delay, and server inference time. Scores depend on the loaded data; do not report public-example scores as hidden-test results.
+- New readings are stored in `sentinel_auth.sqlite3` by signed-in account and scored by the trained model. Review predictions: confirmed-normal readings join the next training run; confirmed anomalies are stored but excluded from training. After a confirmation saves and the model refreshes, the review popup closes automatically.
+- The alert table lists each flagged point and each missed point inside known NAB windows. New user readings have no automatic ground truth, so a person must review them before calling them true or false alerts.
+- The browser sends the loaded series to the local authenticated server for training and scoring. User-entered readings persist in SQLite; challenge CSV contents are not stored as a dataset file.
 
 ## Project files
 
 - `auth_server.py` — local login server, session handling, member access, presenter management.
 - `sentinel.py` — Python streaming detector and sample run.
-- `index.html`, `styles.css`, `app.js` — responsive dashboard and synthetic demonstration.
+- `isolation_forest.py` — dependency-free Isolation Forest model used by the website.
+- `index.html`, `styles.css`, `app.js` — responsive NAB dataset dashboard, CSV/labels loading, streaming replay, evidence, and benchmark metrics.
 - `login.html`, `auth.css`, `auth.js` — sign-in and member registration pages.
 - `code-explainer.html` — beginner-friendly method and demo guide.
-- `make_deck.py`, `Sentinel_Challenge_2_Presentation.pptx` — deck source and the official 10-slide presentation.
+- `Sentinel_Challenge_2_Presentation.pptx` — the official 10-slide presentation.
 - `Utkrishta 2026 Participant Problem Statements.pdf` — official challenge brief.
 - `AUTH_SETUP.md` — authentication and local setup details.
 
 ## Private GitHub notes
 
 Keep this repository private while it contains the demo admin credential. Change the default password before hosting anywhere public. The account database `sentinel_auth.sqlite3`, local `.env` files, Python caches, and editor/OS files are excluded by `.gitignore`; do not commit user records. Public deployment requires HTTPS, persistent private database storage, and an application server—not static hosting.
-
-## Rebuild the presentation (optional)
-
-The web app does not need the presentation package. To regenerate the PowerPoint on a machine with internet access:
-
-```sh
-python3 -m pip install -r requirements-deck.txt
-python3 make_deck.py
-```
 
