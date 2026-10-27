@@ -14,10 +14,10 @@ Registration checks the address suffix only. Without OTP or another identity pro
 
 ## Presenter account and sharing
 
-On the first server start, the primary presenter account is created automatically. Sign in with `navneet.k26@iiits.in` and the requested demo password `demopass`. At the bottom of the dashboard, the primary presenter can open or close member access and add/remove other presenter accounts. Added presenters use `@iiits.in` addresses and receive the password set by the primary presenter; they can use the anomaly demo controls but cannot manage access or presenters.
+On the first server start, the primary presenter account is created automatically. For local development only, sign in with `navneet.k26@iiits.in` and the demo password `demopass`. Do not use this demo password outside local development. At the bottom of the dashboard, the primary presenter can open or close member access and add/remove other presenter accounts. Added presenters use `@iiits.in` addresses and receive the password set by the primary presenter; they can use the detector but cannot manage access or presenters.
 
-The presenter email and password can be changed with `SENTINEL_ADMIN_EMAIL` and `SENTINEL_ADMIN_PASSWORD`. The accepted institute domain can be changed with `SENTINEL_INSTITUTE_DOMAIN`; the default is `iiits.in`. Change the demo password before hosting publicly.
+The presenter email and password can be changed with `SENTINEL_ADMIN_EMAIL` and `SENTINEL_ADMIN_PASSWORD`. The accepted institute domain can be changed with `SENTINEL_INSTITUTE_DOMAIN`; the default is `iiits.in`.
 
-## Storage and deployment
+## Storage
 
-Accounts and the sharing switch are stored in `sentinel_auth.sqlite3` beside the server. Back up that file to preserve registrations. For public deployment, use HTTPS, keep the database on persistent private storage, and run this server behind a trusted HTTPS reverse proxy. Do not host the files directly from a static file server.
+Accounts, the sharing switch, and each user's submitted numeric readings are stored in `sentinel_auth.sqlite3` beside the server by default. Set `SENTINEL_DB_PATH` to use another database file. Reading records are scoped to the signed-in email. The model is held in server memory and retrained from the public NAB series plus that user's confirmed-normal readings. Back up the database to preserve accounts and inputs.

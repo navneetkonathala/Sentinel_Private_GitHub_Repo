@@ -35,96 +35,88 @@
         <div>
           <div class="eyebrow"><span class="eyebrow-line"></span> ADAPTIVE TIME-SERIES ANOMALY DETECTION</div>
           <h1>Sentinel<span class="title-period">.</span></h1>
-          <p class="intro-copy">A simple demo that learns what is usual in a stream of numbers and flags readings that are far from it.</p>
+          <p class="intro-copy">Explore real, timestamped NAB telemetry and see how an adaptive detector responds to known anomaly periods.</p>
         </div>
         <div class="intro-note"><span class="note-index">02</span><span>STREAMING<br>MONITOR</span></div>
       </section>
 
       <section class="plain-language" aria-label="What this demo detects">
         <div class="plain-icon" aria-hidden="true">↗</div>
-        <div><strong>What is it detecting?</strong><p>This demo spots unusually high or low <b>numbers over time</b>. The signal is generated randomly; no real-time database or company system is connected. It does <b>not</b> read server packets. Once the presenter opens member access, you can try Sentinel’s anomaly and drift controls on the demo signal.</p></div>
+        <div><strong>What is it detecting?</strong><p>The loaded NAB example is <b>office ambient temperature</b> measured over time. An unsupervised <b>Isolation Forest</b> flags unusual readings; it does <b>not</b> inspect server packets. Known NAB windows are excluded from training and used to mark true hits, false alarms, and missed readings.</p></div>
         <a href="code-explainer.html">Simple code guide <span>→</span></a>
       </section>
 
       <section class="metrics" aria-label="Live detector metrics">
-        <article class="metric"><div class="metric-label">CURRENT SIGNAL <span class="metric-dot teal"></span></div><div class="metric-value"><span id="current-value">42.0</span><small>units</small></div><div class="metric-foot"><span id="signal-state">Within expected range</span></div></article>
-        <article class="metric"><div class="metric-label">LEARNED BASELINE <span class="metric-dot ink"></span></div><div class="metric-value"><span id="baseline-value">42.0</span><small>μ</small></div><div class="metric-foot">Robust rolling center</div></article>
-        <article class="metric"><div class="metric-label">ACTIVE THRESHOLD <span class="metric-dot amber"></span></div><div class="metric-value"><span id="threshold-value">±8.0</span><small>σ robust</small></div><div class="metric-foot">Median absolute deviation</div></article>
-        <article class="metric event-metric"><div class="metric-label">FLAGGED EVENTS</div><div class="metric-value"><span id="event-count">0</span><small>this session</small></div><div class="metric-foot"><span class="event-foot-dot"></span><span id="last-event">No anomalies detected</span></div></article>
+        <article class="metric"><div class="metric-label">CURRENT READING <span class="metric-dot teal"></span></div><div class="metric-value"><span id="current-value">—</span><small id="reading-unit">°F</small></div><div class="metric-foot"><span id="signal-state">Loading NAB data…</span></div></article>
+        <article class="metric"><div class="metric-label">ROLLING BASELINE <span class="metric-dot ink"></span></div><div class="metric-value"><span id="baseline-value">—</span><small>median</small></div><div class="metric-foot">Previous accepted readings</div></article>
+        <article class="metric"><div class="metric-label">ISOLATION FOREST CUTOFF <span class="metric-dot amber"></span></div><div class="metric-value"><span id="threshold-value">—</span><small>score</small></div><div class="metric-foot">Higher scores look more unusual</div></article>
+        <article class="metric event-metric"><div class="metric-label">NAB EVENTS DETECTED</div><div class="metric-value"><span id="event-count">—</span><small id="event-unit">of 2</small></div><div class="metric-foot"><span class="event-foot-dot"></span><span id="last-event">Waiting for model training</span></div></article>
+      </section>
+
+      <div class="rolling-counts" aria-label="Anomaly counts so far in this replay">
+        <div><span>ANOMALY FLAGS · SO FAR</span><strong id="rolling-total">0</strong></div>
+        <div><span>TRUE POSITIVE FLAGS</span><strong id="rolling-true">0</strong></div>
+        <div><span>FALSE POSITIVE FLAGS</span><strong id="rolling-false">0</strong></div>
+        <p id="rolling-count-note">Counts update as the series plays. True/false counts use NAB labels.</p>
+      </div>
+
+      <section class="input-panel" aria-labelledby="input-title">
+        <div class="input-panel-heading"><div><div class="section-kicker">TRAIN · STORE · PREDICT</div><h2 id="input-title">Add a reading to your database</h2><p>Sentinel scores it with your trained Isolation Forest. Each reading is saved to your account’s SQLite records.</p></div><button id="training-button" class="button button-quiet" type="button" disabled>Train / refresh model</button></div>
+        <div class="model-status"><span class="stream-indicator paused"></span><span id="model-status">Loading NAB data before training…</span></div>
+        <form id="reading-form" class="reading-form"><label>Reading time<input id="reading-time" type="datetime-local" required></label><label>Temperature / value<input id="reading-value" type="number" step="any" placeholder="e.g. 71.2" required></label><button id="submit-reading" class="button button-share" type="submit" disabled>Save &amp; check reading</button></form>
+        <p id="prediction-message" class="dataset-message" role="status">New readings are scored after the model finishes training.</p>
       </section>
 
       <section class="monitor-panel" aria-labelledby="signal-title">
         <div class="panel-head">
-          <div><div class="section-kicker">SYNTHETIC DEMO · NO DATABASE <span class="tiny-pulse"></span></div><h2 id="signal-title">Signal behavior</h2><p id="member-demo-banner" class="member-demo-banner" hidden>Demo mode is active. Explore Sentinel’s functions with simulated readings; this dashboard is not connected to a real service.</p></div>
-          <div class="chart-legend"><span><i class="legend-signal"></i>Signal</span><span><i class="legend-baseline"></i>Baseline</span><span><i class="legend-bound"></i>Bounds</span><span><i class="legend-flag"></i>Flagged</span></div>
+          <div><div class="section-kicker" id="dataset-source">NAB PUBLIC DATASET · LOADING <span class="tiny-pulse"></span></div><h2 id="signal-title">Office temperature anomaly monitor</h2><p id="member-demo-banner" class="member-demo-banner" hidden>This is a public NAB dataset in a local learning demo; it is not a live company or server connection.</p><div class="dataset-tools"><label class="dataset-upload">Load challenge CSV<input id="dataset-file" type="file" accept=".csv,text/csv"></label><label class="dataset-upload">Load labels JSON<input id="labels-file" type="file" accept=".json,application/json"></label><span>CSV columns: <code>timestamp,value</code>; NAB windows JSON supported</span><a href="https://github.com/numenta/NAB" target="_blank" rel="noreferrer">NAB source ↗</a></div><p id="dataset-message" class="dataset-message" role="status">Loading public NAB example…</p></div>
+          <div class="chart-legend"><span><i class="legend-signal"></i>Temperature</span><span><i class="legend-baseline"></i>Local median</span><span><i class="legend-flag"></i>Isolation Forest flag</span></div>
         </div>
-        <div class="chart-wrap"><canvas id="signal-chart" aria-label="Live anomaly detection signal chart"></canvas><div class="chart-y-label">SIGNAL · UNITS</div><div class="chart-time-label"><span>−60 samples</span><span>NOW</span></div><div id="chart-tooltip" class="chart-tooltip" aria-live="polite"></div></div>
-        <div class="chart-footer"><div class="stream-readout"><span class="stream-indicator"></span><span id="stream-label">STREAMING</span><span class="readout-divider"></span><span id="sample-count">SAMPLE 001</span></div><div id="demo-controls" class="controls" hidden><button id="inject-button" class="button button-alert" type="button" title="Inject an anomaly into the signal"><span class="button-icon">＋</span> Inject anomaly</button><button id="drift-button" class="button button-quiet" type="button" title="Toggle gradual baseline drift"><span class="button-icon">↗</span> <span id="drift-label">Simulate drift</span></button><button id="pause-button" class="icon-button" type="button" aria-label="Pause stream" title="Pause stream">Ⅱ</button><button id="reset-button" class="icon-button" type="button" aria-label="Reset simulation" title="Reset simulation">↺</button></div></div>
+        <div class="chart-wrap"><canvas id="signal-chart" aria-label="NAB temperature readings and detected anomalies"></canvas><div id="chart-y-label" class="chart-y-label">TEMPERATURE · °F</div><div class="chart-time-label"><span id="chart-start">—</span><span id="chart-end">—</span></div><div id="chart-tooltip" class="chart-tooltip" aria-live="polite"></div></div>
+        <div class="chart-footer"><div class="stream-readout"><span class="stream-indicator"></span><span id="stream-label">LOADING</span><span class="readout-divider"></span><span id="sample-count">SAMPLE 000</span></div><div id="demo-controls" class="controls"><label class="timeline-label" for="timeline-slider">Jump through series</label><input id="timeline-slider" type="range" min="0" max="1" value="0" aria-label="Choose a point in the time series"><button id="pause-button" class="button button-quiet" type="button" aria-label="Pause playback" title="Pause playback">Ⅱ Pause</button><button id="reset-button" class="button button-quiet" type="button" title="Restart playback">↺ Restart</button></div></div>
+      </section>
+
+      <section class="benchmark-strip" aria-label="NAB benchmark evaluation">
+        <div class="benchmark-heading"><div class="section-kicker">FULL SERIES · EVENT LEVEL</div><h2>How did the detector perform?</h2><p>Calculated against the NAB labeled anomaly windows. These scores use the full loaded series and are separate from the replay position.</p></div>
+        <div id="benchmark-metrics" class="benchmark-metrics"><article><span>EVENT PRECISION</span><b>—</b><small>Loading dataset</small></article><article><span>EVENT RECALL</span><b>—</b><small>Loading dataset</small></article><article><span>EVENT F1</span><b>—</b><small>Loading dataset</small></article><article><span>MEAN DETECTION DELAY</span><b>—</b><small>Loading dataset</small></article><article><span>INFERENCE TIME</span><b>—</b><small>per sample</small></article></div>
       </section>
 
       <section class="lower-grid">
-        <section id="events" class="events-panel" aria-labelledby="events-title">
-          <div class="panel-head compact-head"><div><div class="section-kicker">DETECTION LOG</div><h2 id="events-title">Recent events</h2></div><span class="event-total" id="event-total">0 events</span></div>
-          <div class="events-table-wrap"><table><thead><tr><th>START</th><th>PEAK</th><th>FROM BASELINE</th><th>STATUS</th></tr></thead><tbody id="event-rows"><tr class="empty-row"><td colspan="4"><span class="empty-icon">⌁</span> Listening for significant deviations</td></tr></tbody></table></div>
-        </section>
-        <aside class="method-card"><div class="method-top"><span class="method-icon">⌁</span><span class="method-tag">PERMITTED APPROACH</span></div><div class="method-name">Sliding-window<br>adaptive threshold</div><p>Uses rolling median + MAD to set an explainable range. The baseline learns from clean data and holds steady when a spike appears.</p><a href="#method" class="text-link">Explore the method <span>→</span></a><div class="method-spark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></aside>
+        <details id="events" class="events-panel">
+          <summary class="alert-summary"><span><span class="section-kicker">POINT-BY-POINT ALERT REVIEW</span><strong id="events-title">Every anomaly and false alarm</strong><span id="alert-preview" class="alert-preview" aria-live="polite">Anomaly examples appear here after model training.</span></span><span id="event-total" class="event-total">Waiting for model</span><span class="alert-expand-label">Expand list ↓</span></summary>
+          <div class="events-table-wrap"><table><thead><tr><th>#</th><th>TIME</th><th>VALUE</th><th>IF SCORE</th><th>RESULT</th><th>REVIEW / TRAINING</th></tr></thead><tbody id="event-rows"><tr class="empty-row"><td colspan="6"><span class="empty-icon">⌁</span>Train the model to list individual anomaly points.</td></tr></tbody></table><div class="alert-pagination"><button id="load-more-alerts" class="button button-quiet" type="button" hidden>Show more alerts</button><span id="alert-range" class="event-total"></span></div></div>
+        </details>
+        <aside class="method-card"><div class="method-top"><span class="method-icon">⌁</span><span class="method-tag">PERMITTED ML APPROACH</span></div><div class="method-name">Isolation<br>Forest</div><p>Forty randomized trees try to separate each reading. Unusual points are isolated in fewer splits and receive a higher anomaly score.</p><p class="dataset-provenance">Training uses clean NAB points and only user readings reviewed as normal.</p><a href="#method" class="text-link">Explore the method <span>→</span></a><div class="method-spark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></aside>
       </section>
 
       <section id="method" class="method-section">
-        <div class="method-section-head"><div><div class="eyebrow"><span class="eyebrow-line"></span> HOW IT WORKS</div><h2>From raw signal<br>to useful alert.</h2></div><p class="method-intro">No training job. No heavy model. Sentinel updates one observation at a time and adapts only when the data looks trustworthy. <a href="code-explainer.html">Read the beginner guide →</a></p></div>
+        <div class="method-section-head"><div><div class="eyebrow"><span class="eyebrow-line"></span> HOW THE ML MODEL WORKS</div><h2>Train on normal.<br>Isolate the unusual.</h2></div><p class="method-intro">An Isolation Forest is an unsupervised machine-learning model: it learns from clean NAB readings, then scores each new point. Confirmed-normal user readings can join the next training run. <a href="code-explainer.html">Read the beginner guide →</a></p></div>
         <div class="steps-grid">
-          <article class="step-card"><span class="step-number">01</span><div class="step-symbol">↓</div><h3>Ingest</h3><p>Accept a timestamped numeric observation from any stream: sensor, service metric, or process signal.</p><span class="step-detail">O(1) PER SAMPLE</span></article>
-          <article class="step-card"><span class="step-number">02</span><div class="step-symbol">⌖</div><h3>Establish normal</h3><p>Use the rolling median as center and scaled MAD as spread. Robust statistics shrug off isolated spikes.</p><span class="step-detail">51 VALUES · MAD × 1.4826</span></article>
-          <article class="step-card"><span class="step-number">03</span><div class="step-symbol">!</div><h3>Score & flag</h3><p>Compare the new point with the current band. One reading outside the band is flagged as an anomaly.</p><span class="step-detail">ROBUST Z-SCORE · ±3.5</span></article>
-          <article class="step-card"><span class="step-number">04</span><div class="step-symbol">↗</div><h3>Adapt safely</h3><p>Only clean observations update the window. Gradual shifts can become the new normal without absorbing sharp anomalies.</p><span class="step-detail">CLEAN DATA ONLY</span></article>
+          <article class="step-card"><span class="step-number">01</span><div class="step-symbol">↓</div><h3>Prepare data</h3><p>Read timestamped NAB values. Keep known anomaly windows out of the training examples.</p><span class="step-detail">LABELED WINDOWS HELD OUT</span></article>
+          <article class="step-card"><span class="step-number">02</span><div class="step-symbol">⌖</div><h3>Train forest</h3><p>Build randomized isolation trees from clean readings plus user readings reviewed as normal.</p><span class="step-detail">40 TREES · 128 SAMPLE SIZE</span></article>
+          <article class="step-card"><span class="step-number">03</span><div class="step-symbol">!</div><h3>Score each point</h3><p>A point separated by fewer tree splits receives a higher anomaly score and may cross the learned cutoff.</p><span class="step-detail">HIGHER SCORE = MORE UNUSUAL</span></article>
+          <article class="step-card"><span class="step-number">04</span><div class="step-symbol">↗</div><h3>Review & learn</h3><p>See every flag and false alarm. Confirm normal readings to include them in your next training run.</p><span class="step-detail">USER-SPECIFIC SAVED INPUTS</span></article>
         </div>
         <div class="code-panel">
-          <div class="code-head"><div class="code-title"><span class="code-indicator"></span>REFERENCE IMPLEMENTATION <span class="code-file">sentinel.py</span></div><div class="code-actions"><button id="copy-code" class="code-button" type="button" title="Copy detector code">▣ <span>Copy</span></button><a class="code-button download-code" href="sentinel.py" download title="Download Python reference">↓ <span>Download .py</span></a></div></div>
-          <pre><code id="python-code">from collections import deque
-from statistics import median
+          <div class="code-head"><div class="code-title"><span class="code-indicator"></span>ISOLATION FOREST CORE <span class="code-file">isolation_forest.py</span></div><div class="code-actions"><button id="copy-code" class="code-button" type="button" title="Copy detector code">▣ <span>Copy</span></button><a class="code-button download-code" href="isolation_forest.py" download title="Download Isolation Forest implementation">↓ <span>Download .py</span></a></div></div>
+          <pre><code id="python-code">from isolation_forest import IsolationForest
 
-class Sentinel:
-    """Online robust detector. Feed one numeric sample at a time."""
-    def __init__(self, window=51, threshold=3.5, min_samples=12):
-        self.values = deque(maxlen=window)
-        self.threshold = threshold
-        self.min_samples = min_samples
+# Train on clean examples. Known NAB anomaly windows
+# are held out and used later to evaluate the model.
+forest = IsolationForest(
+    trees=40,
+    sample_size=128,
+    contamination=0.02,
+)
+forest.fit(clean_training_features)
 
-    def update(self, value):
-        if len(self.values) &lt; self.min_samples:
-            self.values.append(value)
-            return {"status": "warming_up", "value": value,
-                    "samples": len(self.values), "needed": self.min_samples,
-                    "explanation": "Collecting normal readings; not scoring yet."}
-
-        center = median(self.values)
-        deviations = [abs(item - center) for item in self.values]
-        mad = median(deviations)
-        spread = max(1.4826 * mad, 1e-9)
-        score = (value - center) / spread
-        upper = center + self.threshold * spread
-        lower = center - self.threshold * spread
-        flagged = abs(score) &gt; self.threshold
-        direction = "high" if value &gt; upper else "low" if value &lt; lower else "within_range"
-
-        # Never teach the baseline from a flagged point.
-        if not flagged:
-            self.values.append(value)
-
-        return {
-            "status": "anomaly" if flagged else "normal",
-            "value": value,
-            "direction": direction,
-            "deviation": round(value - center, 3),
-            "score": round(score, 3),
-            "baseline": center,
-            "upper": upper,
-            "lower": lower,
-            "explanation": "Compare value with the upper/lower limit to explain the alert.",
-        }</code></pre>
-          <div class="code-foot"><span>PYTHON 3 · STANDARD LIBRARY ONLY</span><a href="sentinel.py" download>Get the complete file <span>↗</span></a></div>
+score = forest.score(new_reading_features)
+is_anomaly = forest.predict(new_reading_features)
+label = "ANOMALOUS" if is_anomaly else "NORMAL"
+print(label, score)</code></pre>
+          <div class="code-foot"><span>PYTHON 3 · STANDARD LIBRARY ONLY</span><a href="isolation_forest.py" download>Get the complete model <span>↗</span></a></div>
         </div>
-        <div class="runbook"><div class="runbook-label"><span>RUNBOOK</span><span>5 STEPS</span></div><ol><li><b>01</b><span>Save <code>sentinel.py</code> in your project.</span></li><li><b>02</b><span>Import <code>Sentinel</code> into your stream consumer.</span></li><li><b>03</b><span>Instantiate it: <code>detector = Sentinel(window=51)</code>.</span></li><li><b>04</b><span>For each reading, call <code>result = detector.update(value)</code>.</span></li><li><b>05</b><span>Route <code>result["status"] == "anomaly"</code> to your alert/logging system.</span></li></ol><div class="runbook-note"><span>i</span> Tune <code>window</code> and <code>threshold</code> against representative clean data before production use.</div></div>
+        <div class="runbook"><div class="runbook-label"><span>HOW TO USE THIS DEMO</span><span>5 STEPS</span></div><ol><li><b>01</b><span>Start with <code>python3 auth_server.py</code>.</span></li><li><b>02</b><span>Sign in; the page loads and trains on clean NAB samples.</span></li><li><b>03</b><span>Add a timestamp and value to save and score it.</span></li><li><b>04</b><span>Review each prediction as normal or anomaly.</span></li><li><b>05</b><span>Train again to include confirmed-normal readings.</span></li></ol><div class="runbook-note"><span>i</span> Confirmed anomalies are stored but excluded from training.</div></div>
       </section>
       <section id="admin-access-panel" class="admin-access-panel" hidden>
         <div class="sharing-row"><div><div class="section-kicker">PRIMARY PRESENTER CONTROLS</div><h2>Share the demo</h2><p id="sharing-status">Member access is closed. Registered users will see the coming-soon message.</p></div>
@@ -141,6 +133,15 @@ class Sentinel:
       <footer class="page-footer"><span>SENTINEL <i>·</i> UTKRISHTA 2026</span><span>CHALLENGE 02 / ADAPTIVE TIME-SERIES ANOMALY DETECTION</span></footer>
     </main>
   </div>
+  <dialog id="reading-result-dialog" class="reading-result-dialog" aria-labelledby="reading-result-title">
+    <div class="result-dialog-top"><span class="section-kicker">READING CHECK</span><button id="result-dialog-close" class="icon-button" type="button" aria-label="Close result">×</button></div>
+    <div id="reading-result-mark" class="result-mark" aria-hidden="true">✓</div>
+    <h2 id="reading-result-title">Reading checked</h2>
+    <p id="reading-result-summary"></p>
+    <div class="result-saved-note">Saved to your account database. Choose a label to decide whether it joins model training.</div>
+    <div class="result-review-actions"><button id="result-mark-normal" class="button button-share" type="button">Confirm normal · add to training</button><button id="result-mark-anomaly" class="button button-quiet" type="button">Confirm anomaly · exclude</button></div>
+    <p id="reading-result-status" class="dataset-message" role="status"></p>
+  </dialog>
   <script src="app.js"></script>
 </body>
 </html>

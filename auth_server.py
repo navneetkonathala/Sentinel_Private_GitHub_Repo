@@ -1,6 +1,6 @@
 """Small local demo server with institute-domain registration and gated access.
 
-This is a hackathon prototype; deploy behind HTTPS and replace the demo admin password before public use.
+This is a hackathon prototype; replace the demo admin password before using it outside local development.
 """
 
 from __future__ import annotations
@@ -13,21 +13,27 @@ import secrets
 import sqlite3
 import time
 import threading
+import math
+from statistics import median
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from isolation_forest import IsolationForest, features
+
 
 ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "sentinel_auth.sqlite3"
+DB_PATH = Path(os.environ.get("SENTINEL_DB_PATH", str(ROOT / "sentinel_auth.sqlite3")))
 HOST = os.environ.get("SENTINEL_HOST", "127.0.0.1")
-PORT = int(os.environ.get("SENTINEL_PORT", "8001"))
+PORT = int(os.environ.get("SENTINEL_PORT", os.environ.get("PORT", "8001")))
 ADMIN_EMAIL = os.environ.get("SENTINEL_ADMIN_EMAIL", "navneet.k26@iiits.in").strip().lower()
 ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", "demopass")
 INSTITUTE_DOMAIN = os.environ.get("SENTINEL_INSTITUTE_DOMAIN", "iiits.in").strip().lower().lstrip("@")
 SESSION_SECONDS = 60 * 60 * 12
 LOGIN_FAILURES = {}
 LOGIN_LOCK = threading.Lock()
+MODEL_CACHE = {}
 
 
 def connect_db():
@@ -56,6 +62,17 @@ def init_db():
                 value TEXT NOT NULL
             );
             INSERT OR IGNORE INTO settings(name, value) VALUES ('shared_access', '0');
+            CREATE TABLE IF NOT EXISTS observations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                value REAL NOT NULL,
+                score REAL NOT NULL,
+                predicted_anomaly INTEGER NOT NULL,
+                review_label TEXT CHECK(review_label IN ('normal','anomaly') OR review_label IS NULL),
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS observations_by_user_time ON observations(email, timestamp, id);
         """)
         schema = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").fetchone()[0]
         if "presenter" not in schema:
@@ -102,7 +119,7 @@ class SentinelHandler(BaseHTTPRequestHandler):
     def read_json(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if length > 8192:
+            if length > 2_000_000:
                 return None
             return json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, json.JSONDecodeError):
@@ -110,6 +127,16 @@ class SentinelHandler(BaseHTTPRequestHandler):
 
     def api_error(self, status: int, message: str, code: str = "error"):
         self.send_json(status, {"ok": False, "code": code, "message": message})
+
+    def api_user(self):
+        user = self.session_user()
+        if not user:
+            self.api_error(401, "Please sign in again.", "unauthorized")
+            return None
+        if user["role"] == "member" and not self.shared_access():
+            self.api_error(403, "Member access is currently closed.", "access_closed")
+            return None
+        return user
 
     def session_user(self):
         cookie = self.headers.get("Cookie", "")
@@ -173,6 +200,14 @@ class SentinelHandler(BaseHTTPRequestHandler):
                 rows = db.execute("SELECT email, created_at FROM users WHERE role='presenter' ORDER BY email").fetchall()
             self.send_json(200, {"ok": True, "presenters": [dict(row) for row in rows]})
             return
+        if path == "/api/observations":
+            user = self.api_user()
+            if not user:
+                return
+            with connect_db() as db:
+                rows = db.execute("SELECT id,timestamp,value,score,predicted_anomaly,review_label,created_at FROM observations WHERE email=? ORDER BY timestamp,id", (user["email"],)).fetchall()
+            self.send_json(200, {"ok": True, "observations": [dict(row) for row in rows]})
+            return
         if path in ("/index.html", "/code-explainer.html"):
             user = self.session_user()
             if not user:
@@ -180,7 +215,7 @@ class SentinelHandler(BaseHTTPRequestHandler):
             if user["role"] == "member" and not self.shared_access():
                 self.send_response(302); self.send_header("Location", "/login.html?locked=1"); self.end_headers(); return
             self.send_page(path.lstrip("/")); return
-        if path in ("/styles.css", "/app.js", "/auth.css", "/auth.js", "/manifest.webmanifest", "/icon.svg", "/sw.js", "/sentinel.py", "/Utkrishta 2026 Participant Problem Statements.pdf"):
+        if path in ("/styles.css", "/app.js", "/auth.css", "/auth.js", "/manifest.webmanifest", "/icon.svg", "/sw.js", "/sentinel.py", "/isolation_forest.py", "/Utkrishta 2026 Participant Problem Statements.pdf"):
             self.send_file(path.lstrip("/")); return
         self.send_error(404)
 
@@ -224,7 +259,205 @@ class SentinelHandler(BaseHTTPRequestHandler):
             self.add_presenter(data); return
         if path == "/api/admin/presenters/remove":
             self.remove_presenter(data); return
+        if path == "/api/model/train":
+            self.train_model(data); return
+        if path == "/api/observations":
+            self.add_observation(data); return
+        if path == "/api/observations/review":
+            self.review_observation(data); return
         self.api_error(404, "Not found.")
+
+    @staticmethod
+    def parse_timestamp(value):
+        try:
+            parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=__import__("datetime").timezone.utc)
+            return parsed.timestamp()
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def train_model(self, data):
+        user = self.api_user()
+        if not user:
+            return
+        raw_rows = data.get("rows")
+        raw_windows = data.get("windows", [])
+        if not isinstance(raw_rows, list) or len(raw_rows) < 100 or len(raw_rows) > 25000:
+            self.api_error(400, "Load a time-series CSV with between 100 and 25,000 readings first.", "invalid_dataset")
+            return
+        if not isinstance(raw_windows, list) or len(raw_windows) > 1000:
+            self.api_error(400, "The anomaly-window labels are not in a supported format.", "invalid_labels")
+            return
+        rows = []
+        for item in raw_rows:
+            if not isinstance(item, dict):
+                self.api_error(400, "Each data row needs a timestamp and numeric value.", "invalid_dataset")
+                return
+            timestamp = self.parse_timestamp(item.get("timestamp"))
+            try:
+                value = float(item.get("value"))
+            except (TypeError, ValueError):
+                value = float("nan")
+            if timestamp is None or not math.isfinite(value):
+                self.api_error(400, "Dataset timestamps and values must be valid numbers.", "invalid_dataset")
+                return
+            rows.append({"timestamp": str(item["timestamp"]), "time": timestamp, "value": value})
+        rows.sort(key=lambda row: row["time"])
+        windows = []
+        for item in raw_windows:
+            try:
+                start = self.parse_timestamp(item.get("start"))
+                end = self.parse_timestamp(item.get("end"))
+            except AttributeError:
+                start = end = None
+            if start is None or end is None or end < start:
+                self.api_error(400, "Anomaly windows need valid start and end timestamps.", "invalid_labels")
+                return
+            windows.append((start, end))
+
+        is_labeled = lambda timestamp: any(start <= timestamp <= end for start, end in windows)
+        training = []
+        clean_history = []
+        for row in rows:
+            vector = features(row["value"], clean_history)
+            if not is_labeled(row["time"]):
+                training.append(vector)
+                clean_history.append(row["value"])
+                if len(clean_history) > 24:
+                    clean_history.pop(0)
+        nab_context = clean_history[-24:]
+        with connect_db() as db:
+            user_rows = db.execute("SELECT timestamp,value FROM observations WHERE email=? AND review_label='normal' ORDER BY timestamp,id", (user["email"],)).fetchall()
+        for stored in user_rows:
+            value = float(stored["value"])
+            training.append(features(value, clean_history))
+            clean_history.append(value)
+            if len(clean_history) > 24:
+                clean_history.pop(0)
+        try:
+            seed = int(hashlib.sha256(user["email"].encode()).hexdigest()[:8], 16)
+            forest = IsolationForest(trees=40, sample_size=128, contamination=0.02, seed=seed).fit(training)
+        except (ValueError, RuntimeError) as error:
+            self.api_error(400, str(error), "training_failed")
+            return
+
+        # Replay in chronological order. A flagged point is withheld from the
+        # context so one anomaly cannot teach the detector that it is normal.
+        replay_history = []
+        predictions = []
+        inference_start = time.perf_counter()
+        for row in rows:
+            vector = features(row["value"], replay_history)
+            score = forest.score(vector)
+            flagged = score >= forest.threshold
+            truth = is_labeled(row["time"])
+            predictions.append({
+                "timestamp": row["timestamp"], "value": row["value"],
+                "score": round(score, 5), "anomaly": flagged, "truth": truth,
+                "truth_known": bool(windows),
+                "false_positive": bool(windows) and flagged and not truth,
+                "missed": bool(windows) and truth and not flagged,
+                "baseline": round(median(replay_history), 4) if replay_history else row["value"],
+            })
+            if not flagged:
+                replay_history.append(row["value"])
+                if len(replay_history) > 24:
+                    replay_history.pop(0)
+        inference_ms = (time.perf_counter() - inference_start) * 1000 / len(rows)
+
+        matched = [next((point for point in predictions if point["anomaly"] and self.parse_timestamp(point["timestamp"]) >= start and self.parse_timestamp(point["timestamp"]) <= end), None) for start, end in windows]
+        tp = sum(point is not None for point in matched)
+        fn = len(windows) - tp
+        runs = []
+        for index, point in enumerate(predictions):
+            if not point["anomaly"]:
+                continue
+            if not runs or index - runs[-1][-1] > 2:
+                runs.append([index])
+            else:
+                runs[-1].append(index)
+        # Keep point rows lean in the API, but use parsed timestamps for event metrics.
+        prediction_times = [self.parse_timestamp(point["timestamp"]) for point in predictions]
+        false_runs = sum(not any(any(start <= prediction_times[index] <= end for index in run) for start, end in windows) for run in runs)
+        fp = false_runs
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        delays = []
+        for (start, end), first in zip(windows, matched):
+            if first:
+                delays.append((self.parse_timestamp(first["timestamp"]) - start) / 60.0)
+        MODEL_CACHE[user["email"]] = {"forest": forest, "history": nab_context, "trained_at": int(time.time())}
+        self.send_json(200, {
+            "ok": True,
+            "model": "Isolation Forest",
+            "trees": forest.trees,
+            "sample_size": min(forest.sample_size, forest.training_count),
+            "threshold": round(forest.threshold, 5),
+            "training_count": forest.training_count,
+            "user_training_count": len(user_rows),
+            "contamination": forest.contamination,
+            "predictions": predictions,
+            "metrics": {"precision": precision, "recall": recall, "event_f1": f1,
+                        "tp": tp, "fp": fp, "fn": fn,
+                        "mean_delay_minutes": sum(delays) / len(delays) if delays else None,
+                        "inference_ms_per_sample": inference_ms},
+        })
+
+    def add_observation(self, data):
+        user = self.api_user()
+        if not user:
+            return
+        cached = MODEL_CACHE.get(user["email"])
+        if not cached:
+            self.api_error(409, "Train the model on the loaded NAB dataset before submitting readings.", "model_not_trained")
+            return
+        timestamp = self.parse_timestamp(data.get("timestamp"))
+        try:
+            value = float(data.get("value"))
+        except (TypeError, ValueError):
+            value = float("nan")
+        if timestamp is None or not math.isfinite(value):
+            self.api_error(400, "Enter a valid timestamp and numeric reading.", "invalid_reading")
+            return
+        with connect_db() as db:
+            recent = db.execute("SELECT timestamp,value,predicted_anomaly,review_label FROM observations WHERE email=? ORDER BY timestamp DESC,id DESC LIMIT 24", (user["email"],)).fetchall()
+            recent = [row for row in reversed(recent) if row["review_label"] != "anomaly" and not row["predicted_anomaly"]]
+            history = [float(value) for value in cached["history"]]
+            history.extend(float(row["value"]) for row in recent)
+            vector = features(value, history[-24:])
+            forest = cached["forest"]
+            score = forest.score(vector)
+            flagged = score >= forest.threshold
+            cursor = db.execute("INSERT INTO observations(email,timestamp,value,score,predicted_anomaly,review_label,created_at) VALUES(?,?,?,?,?,NULL,?)",
+                                (user["email"], str(data["timestamp"]), value, score, int(flagged), int(time.time())))
+            observation_id = cursor.lastrowid
+        self.send_json(201, {"ok": True, "observation": {"id": observation_id, "timestamp": str(data["timestamp"]), "value": value,
+                         "score": round(score, 5), "anomaly": flagged,
+                         "training_candidate": not flagged,
+                         "message": "Unusual reading flagged by Isolation Forest." if flagged else "Reading is within the learned pattern; confirm it as normal to include it in the next training run."}})
+
+    def review_observation(self, data):
+        user = self.api_user()
+        if not user:
+            return
+        try:
+            observation_id = int(data.get("id"))
+        except (TypeError, ValueError):
+            self.api_error(400, "Choose a valid reading to review.", "invalid_id")
+            return
+        label = data.get("label")
+        if label not in ("normal", "anomaly"):
+            self.api_error(400, "Review the reading as normal or anomaly.", "invalid_label")
+            return
+        with connect_db() as db:
+            result = db.execute("UPDATE observations SET review_label=? WHERE id=? AND email=?", (label, observation_id, user["email"]))
+        if not result.rowcount:
+            self.api_error(404, "That saved reading was not found.", "not_found")
+            return
+        MODEL_CACHE.pop(user["email"], None)
+        self.send_json(200, {"ok": True, "message": "Review saved. Train again to include confirmed-normal readings."})
 
     def register(self, data):
         email = str(data.get("email", "")).strip().lower()

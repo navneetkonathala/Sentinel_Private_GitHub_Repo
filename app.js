@@ -108,6 +108,19 @@ function renderEvents() {
   });
   const entries = [...benchmarkRows, ...inputRows];
   body.innerHTML = entries.length ? entries.slice(0, alertLimit).map((cells, index) => `<tr><td>${index + 1}</td>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('') : '<tr class="empty-row"><td colspan="6"><span class="empty-icon">⌁</span>No anomaly points or saved readings yet.</td></tr>';
+  const preview = document.querySelector('#alert-preview');
+  const anomalyExamples = scored.result.filter(point => point.anomaly).slice(0, 3);
+  preview.replaceChildren();
+  if (anomalyExamples.length) {
+    anomalyExamples.forEach((point, index) => {
+      const item = document.createElement('span');
+      item.className = 'alert-preview-item';
+      item.textContent = `Anomaly ${index + 1}: ${formatTime(point.timestamp)} · ${point.value.toFixed(2)} ${currentUnit} · score ${point.score.toFixed(4)}`;
+      preview.append(item);
+    });
+  } else {
+    preview.textContent = scored.result.length ? 'No anomaly flags in this series.' : 'Anomaly examples appear here after model training.';
+  }
   document.querySelector('#event-total').textContent = `${benchmarkRows.length} NAB points · ${observations.length} saved inputs`;
   const moreButton = document.querySelector('#load-more-alerts');
   moreButton.hidden = entries.length <= alertLimit;

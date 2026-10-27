@@ -2,35 +2,21 @@
 
 Sentinel is a student prototype for NAB time-series anomaly detection. The dashboard trains a permitted unsupervised Isolation Forest on clean readings, scores each point, and shows evidence for detected or missed points.
 
-## Open and run the website from GitHub
+## Run locally
 
-The repository is private, so the owner must first invite hackathon participants as GitHub collaborators. Opening the repository page shows the source files; GitHub does not host this authenticated app as a live website. Each participant can run a local copy:
+Install Python 3.9 or newer, then start the server:
 
-1. Accept the GitHub collaborator invitation and sign in to GitHub.
-2. Install Python 3.9 or newer.
-3. In Terminal, clone the repository and enter its folder:
+```sh
+python3 auth_server.py
+```
 
-   ```sh
-   git clone https://github.com/navneetkonathala/Sentinel_Private_GitHub_Repo.git
-   cd Sentinel_Private_GitHub_Repo
-   ```
-
-   If you downloaded the repository ZIP instead, extract it and open Terminal in the extracted `Sentinel_Private_GitHub_Repo` folder.
-4. Start the authenticated app:
-
-   ```sh
-   python3 auth_server.py
-   ```
-
-5. On that same computer, open <http://127.0.0.1:8001> in a browser. Keep the terminal running while using the site.
-
-The app and its SQLite account database run on that computer; this address is not a public/shared hosted URL. Do not run `python3 -m http.server`: static hosting bypasses the app's sign-in checks. Python's standard library is sufficient; no package installation is needed.
+Open <http://127.0.0.1:8001> in a browser and keep the terminal running while using the site. The app and SQLite account database run on that computer; this address is not a public/shared hosted URL. Do not run `python3 -m http.server`: static hosting bypasses the app's sign-in checks. Python's standard library is sufficient; no package installation is needed.
 
 The primary presenter account is initialized on first run. Its local demo credentials and configuration are documented in [AUTH_SETUP.md](AUTH_SETUP.md). The presenter can add presenter accounts and open/close member access from the bottom of the dashboard. Members register with an `@iiits.in` address and password; the domain is checked, but mailbox ownership is not verified.
 
 ### Demo accounts
 
-The primary presenter administrator is:
+For local development only, the primary presenter administrator is:
 
 - **Email:** `navneet.k26@iiits.in`
 - **Password:** `demopass`
@@ -40,7 +26,7 @@ Example additional presenter credentials (for illustration only; this account is
 - **Email:** `xyz@iiits.in`
 - **Password:** `password`
 
-The example uses the configured `@iiits.in` domain. To create this presenter account, the primary admin must add it in the dashboard; it is not seeded automatically. Ordinary members create their own accounts through **Create account**. Keep this repository private while it contains demo credentials, and change the administrator password before any public deployment.
+The example uses the configured `@iiits.in` domain. To create this presenter account, the primary admin must add it in the dashboard; it is not seeded automatically. Ordinary members create their own accounts through **Create account**. Do not use these demo credentials outside local development. Keep this repository private while it contains demo credentials.
 
 ## Run the Python detector by itself
 
@@ -61,6 +47,13 @@ python3 sentinel.py
 - The alert table lists each flagged point and each missed point inside known NAB windows. New user readings have no automatic ground truth, so a person must review them before calling them true or false alerts.
 - The browser sends the loaded series to the local authenticated server for training and scoring. User-entered readings persist in SQLite; challenge CSV contents are not stored as a dataset file.
 
+### Database and data limits
+
+- **Database:** The app uses Python's built-in `sqlite3` module and the `sentinel_auth.sqlite3` SQLite database for accounts, sessions, settings, and saved user readings. It does not use PostgreSQL.
+- **Training upload:** The server accepts between **100 and 25,000 CSV readings** per training request. The JSON request body is also limited to **2 MB**, so large rows or labels can cause the request-size limit to be reached before 25,000 readings. The model trains on clean readings outside labeled anomaly windows, plus readings the user confirmed as normal.
+- **Tree sample size:** Each Isolation Forest tree uses up to **128 training rows**; this is the per-tree sample size, not the maximum number of rows the model can train on.
+- **Saved readings:** There is no separate per-account row-count limit in the app. Storage is bounded by available disk space on the computer running the server.
+
 ## Project files
 
 - `auth_server.py` — local login server, session handling, member access, presenter management.
@@ -75,4 +68,4 @@ python3 sentinel.py
 
 ## Private GitHub notes
 
-Keep this repository private while it contains the demo admin credential. Change the default password before hosting anywhere public. The account database `sentinel_auth.sqlite3`, local `.env` files, Python caches, and editor/OS files are excluded by `.gitignore`; do not commit user records. Public deployment requires HTTPS, persistent private database storage, and an application server—not static hosting.
+Keep this repository private while it contains the local demo admin credential. The account database `sentinel_auth.sqlite3`, local `.env` files, Python caches, and editor/OS files are excluded by `.gitignore`; do not commit user records.
